@@ -1,193 +1,135 @@
-// Options
-const particleCount = 6000;
+$(function(){
 
-const particleSize = 0.3;
+	var scene = new THREE.Scene();
 
-const defaultAnimationSpeed = 1,
-	morphAnimationSpeed = 18,
-	color = "#FFFFFF";
+	var aspect = window.innerWidth / window.innerHeight;
+	var d = 2;
+	camera = new THREE.OrthographicCamera( - d * aspect, d * aspect, d, - d, 1, 1000 );
+	//var camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 500);
 
-// Triggers
-const triggers = document.getElementsByTagName("span");
+	camera.position.set( 4, 3, 3); // all components equal
+	camera.lookAt( scene.position ); // or the origin
 
-// Renderer
-var renderer = new THREE.WebGLRenderer();
-renderer.setPixelRatio(window.devicePixelRatio);
-renderer.setSize(window.innerWidth, window.innerHeight);
-document.body.appendChild(renderer.domElement);
+	// var axis = new THREE.AxisHelper(10);
+	// scene.add(axis);
 
-// Ensure Full Screen on Resize
-function fullScreen() {
-	camera.aspect = window.innerWidth / window.innerHeight;
-	camera.updateProjectionMatrix();
-
+	var renderer = new THREE.WebGLRenderer({antialias: false});
+	renderer.setPixelRatio(window.devicePixelRatio);
+	renderer.setClearColor(0x141A35);
 	renderer.setSize(window.innerWidth, window.innerHeight);
-}
+	renderer.shadowMapEnabled = true;
+	renderer.shadowMapType = THREE.PCFSoftShadowMap;
 
-window.addEventListener("resize", fullScreen, false);
-
-// Scene
-var scene = new THREE.Scene();
-
-// Camera and position
-var camera = new THREE.PerspectiveCamera(
-	45,
-	window.innerWidth / window.innerHeight,
-	1,
-	10000
-);
-
-camera.position.y = -45;
-camera.position.z = 45;
-
-// Lighting
-var light = new THREE.AmbientLight(0xffffff, 1);
-scene.add(light);
-
-// Orbit Controls
-var controls = new THREE.OrbitControls(camera);
-controls.update();
-
-// Particle Vars
-var particles = new THREE.Geometry();
-
-var texts = [];
-
-var pMaterial = new THREE.PointCloudMaterial({
-	size: particleSize
-});
-
-// Texts
-var loader = new THREE.FontLoader();
-var typeface =
-	"https://dl.dropboxusercontent.com/s/bkqic142ik0zjed/swiss_black_cond.json?";
-
-loader.load(typeface, (font) => {
-	Array.from(triggers).forEach((trigger, idx) => {
-		texts[idx] = {};
-
-		texts[idx].geometry = new THREE.TextGeometry(trigger.textContent, {
-			font: font,
-			size: window.innerWidth * 0.02,
-			height: 4,
-			curveSegments: 10
-		});
-
-		THREE.GeometryUtils.center(texts[idx].geometry);
-
-		texts[idx].particles = new THREE.Geometry();
-
-		texts[idx].points = THREE.GeometryUtils.randomPointsInGeometry(
-			texts[idx].geometry,
-			particleCount
+	var loader = new THREE.JSONLoader();
+	loader.load('https://aperesso.github.io/low_poly_room/room.json', handle_load);
+	function handle_load(geometry,materials) {
+		var obj = new THREE.Mesh(
+			geometry,
+			materials
 		);
-
-		createVertices(texts[idx].particles, texts[idx].points);
-
-		enableTrigger(trigger, idx);
-	});
-});
-
-// Particles
-for (var p = 0; p < particleCount; p++) {
-	var vertex = new THREE.Vector3();
-	vertex.x = 0;
-	vertex.y = 0;
-	vertex.z = 0;
-
-	particles.vertices.push(vertex);
-}
-
-function createVertices(emptyArray, points) {
-	for (var p = 0; p < particleCount; p++) {
-		var vertex = new THREE.Vector3();
-		vertex.x = points[p]["x"];
-		vertex.y = points[p]["y"];
-		vertex.z = points[p]["z"];
-
-		emptyArray.vertices.push(vertex);
+		obj.receiveShadow = true;
+		obj.castShadow = true;
+		scene.add(obj);
 	}
-}
 
-function enableTrigger(trigger, idx) {
-	trigger.setAttribute("data-disabled", false);
+	var screen = new THREE.Mesh(
+		new THREE.PlaneGeometry(.31,.25,.85),
+		new THREE.MeshStandardMaterial({emissive: 0x141A35})
+	);
+	screen.position.set(1.8,.84,1.32);
+	scene.add(screen);
 
-	trigger.addEventListener("click", () => {
-		morphTo(texts[idx].particles, trigger.dataset.color);
-	});
+	var snow = [];
+	var nb = 35;
 
-	if (idx == 0) {
-		morphTo(texts[idx].particles, trigger.dataset.color);
+	for (var i = 0; i < nb ; i++) {
+		var particle = new Snow();
+		particle.init();
+		particle.modelize();
+		snow.push(particle);
 	}
-}
 
-var particleSystem = new THREE.PointCloud(particles, pMaterial);
 
-particleSystem.sortParticles = true;
 
-// Add the particles to the scene
-scene.add(particleSystem);
+	light();
 
-// Animate
-const normalSpeed = defaultAnimationSpeed / 100,
-	fullSpeed = morphAnimationSpeed / 100;
+	function light() {
 
-let animationVars = {
-	speed: normalSpeed,
-	color: color,
-	rotation: -45
-};
+		var spotlight = new THREE.SpotLight(0xF5FC5A);
+		spotlight.position.set(1.75, 4, -3);
+		spotlight.castShadow = true;
+		spotlight.intensity = .2;
+		scene.add(spotlight);
 
-function animate() {
-	particleSystem.rotation.y += animationVars.speed;
-	particles.verticesNeedUpdate = true;
+		var dirlight = new THREE.DirectionalLight(0xfdd8ff);
+		dirlight.position.set(-.96,3,-.75);
+		//dirlight.castShadow = true;
+		dirlight.intensity = .2;
+		scene.add(dirlight);
 
-	camera.position.z = animationVars.rotation;
-	camera.position.y = animationVars.rotation;
-	camera.lookAt(scene.position);
+		var ambi = new THREE.AmbientLight(0x0e1642);
+		scene.add(ambi);
 
-	particleSystem.material.color = new THREE.Color(animationVars.color);
+		var pointlight = new THREE.PointLight();
+		pointlight.position.set(.63,.72,.71);
+		//pointlight.castShadow = true;
+		pointlight.intensity = .2;
+		scene.add(pointlight);
+	}
 
-	window.requestAnimationFrame(animate);
+	function update() {
+		for (var i = 0; i < nb; i++) {
+			snow[i].update();
+		}
+
+		renderer.render(scene,camera);
+		requestAnimationFrame(update);
+	}
+
+
+	function Snow() {
+		this.position = new THREE.Vector3();
+		this.vel = new THREE.Vector3(-1 * (0.0005 + Math.random() * 0.001),-1 * (0.005 + Math.random() * 0.01), -.1 * (0.005 + Math.random() * 0.01));
+
+		this.init = function() {
+			this.position.x = Math.random() * 2.85;
+			this.position.y = 2.6;
+			this.position.z = -2.47 + Math.random() * 2;
+		}
+
+		this.modelize = function() {
+			this.mesh = new THREE.Mesh(
+				new THREE.DodecahedronGeometry(1),
+				new THREE.MeshPhongMaterial({
+					color: 0xfafafa
+				})
+			);
+			this.mesh.position.copy(this.position);
+			this.mesh.scale.set(0.02,0.02,0.02);
+			this.mesh.castShadow = true;
+			this.mesh.receiveShadow = true;
+			scene.add(this.mesh);
+		}
+
+		this.update = function() {
+			if (this.position.y < 0)
+				this.position.y = 2.6;
+			if (this.position.x < 0 || this.position.x > 2.85)
+					this.vel.x *= -1;
+			if (this.position.z < -2.47 || this.position.z > -.47)
+					this.vel.z *= -1;
+			this.position.add(this.vel);
+			this.mesh.position.copy(this.position);
+		}
+	}
+
+	$('#webGL-container').append(renderer.domElement);
 	renderer.render(scene, camera);
-}
 
-animate();
+	update();
+})
 
-function morphTo(newParticles, color = "#FFFFFF") {
-	TweenMax.to(animationVars, 0.1, {
-		ease: Power4.easeIn,
-		speed: fullSpeed,
-		onComplete: slowDown
-	});
-
-	TweenMax.to(animationVars, 2, {
-		ease: Linear.easeNone,
-		color: color
-	});
-
-	// particleSystem.material.color.setHex(color);
-
-	for (var i = 0; i < particles.vertices.length; i++) {
-		TweenMax.to(particles.vertices[i], 2, {
-			ease: Elastic.easeOut.config(0.1, 0.3),
-			x: newParticles.vertices[i].x,
-			y: newParticles.vertices[i].y,
-			z: newParticles.vertices[i].z
-		});
-	}
-
-	console.log(animationVars.rotation);
-
-	TweenMax.to(animationVars, 2, {
-		ease: Elastic.easeOut.config(0.1, 0.3),
-		rotation: animationVars.rotation == 45 ? -45 : 45
-	});
-}
-function slowDown() {
-	TweenMax.to(animationVars, 0.3, {
-		ease: Power2.easeOut,
-		speed: normalSpeed,
-		delay: 0.2
-	});
-}
+// particles :
+// y = 2.60
+// x > 0 , x < 2.85
+// z < 0.42 z > -2.47
