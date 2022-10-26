@@ -1,4 +1,40 @@
-html,
-body {
-  margin: 0;
+.js div#preloader {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #fff;
+}
+.js div#preloader::before {
+  content: " ";
+  display: block;
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  background-image: url("http://donnaong.com/assets/images/artwork/In-A-Beautiful-Place-Far-Away_01.jpg");
+  background-repeat: repeat;
+  background-position: center;
+  background-size: cover;
+  animation: fade 6s ease-in-out infinite;
+}
+
+@keyframes fade {
+  0% {
+    opacity: 0.1;
+    filter: blur(2px);
+  }
+  50% {
+    opacity: 0.6;
+    filter: none;
+  }
+  100% {
+    opacity: 0.1;
+    filter: blur(1px);
+  }
 }
