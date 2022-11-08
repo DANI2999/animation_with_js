@@ -1,374 +1,129 @@
-/**
- * main.js
- */
- var injector;
- (function () {
-   "use strict";
- 
-   angular
-     .module("floatingBubblesEx", ["ngAnimate", "ngRoute"])
-     .config([
-       "$routeProvider",
-       "$compileProvider",
-       function ($routeProvider, $compileProvider) {
-         $routeProvider
-           .when("/", {}) /* Default route redirect */
-           .otherwise({
-             redirectTo: "/"
-           });
-         $compileProvider.debugInfoEnabled(false); /* $compileProvider options */
-       }
-     ])
-     /* The main controller to start up the load animation */
-     .controller("mainCtrl", [
-       "$scope",
-       function ($scope) {
-         var vm = this;
-       }
-     ])
-     /* Just a utility function to shuffle arrays */
-     .factory("shuffle", function () {
-       return function (array) {
-         return array
-           .map(function (n) {
-             return [Math.random(), n];
-           })
-           .sort()
-           .map(function (n) {
-             return n[1];
-           });
-       };
-     })
-     /* See https://greensock.com/forums/topic/10051-animations-pause-when-browser-tab-is-not-visible/ */
-     .factory("hasFocus", function () {
-       var stateKey,
-         eventKey,
-         keys = {
-           hidden: "visibilitychange",
-           webkitHidden: "webkitvisibilitychange",
-           mozHidden: "mozvisibilitychange",
-           msHidden: "msvisibilitychange"
-         };
-       for (stateKey in keys) {
-         if (stateKey in document) {
-           eventKey = keys[stateKey];
-           break;
-         }
-       }
-       return function (c) {
-         if (c) document.addEventListener(eventKey, c);
-         return !document[stateKey];
-       };
-     })
-     /**
-      * bubbles START
-      */
-     /* bubbles: The bubbles controller */
-     .controller("bubblesCtrl", [
-       "$element",
-       "hasFocus",
-       function ($el, hasFocus) {
-         var me = this;
-         me.paused = true;
-         me.initBubble = function (bubbleConfig) {
-           /* Initialize both the foreground and background bubbles size, speed, start time, and x position */
-           if (!me.paused && !me.hightide && hasFocus()) {
-             /* Float bubbles as long as it's not hightide, paused or in a different browser tab */
-             var h = Math.floor(
-                 Math.random() * bubbleConfig.backgroundBubbles.length
-               ),
-               i = Math.floor(Math.random() * bubbleConfig.bubbles.length),
-               s = Math.floor(
-                 Math.random() *
-                   (bubbleConfig.bubbleSizeMax - bubbleConfig.bubbleSizeMin) +
-                   bubbleConfig.bubbleSizeMin
-               );
-             if (!bubbleConfig.bubbles[i].float) {
-               bubbleConfig.bubbles[
-                 i
-               ].float = true; /* This drives the ng-class, which, in turn, drives the animation */
-               bubbleConfig.bubbles[i].floatTime = Math.floor(
-                 Math.random() *
-                   (bubbleConfig.floatTimeMax - bubbleConfig.floatTimeMin) +
-                   bubbleConfig.floatTimeMin
-               );
-               bubbleConfig.bubbles[i].bubbleSize = s;
-               bubbleConfig.bubbles[i].timeBetween =
-                 Math.random() *
-                   (bubbleConfig.timeBetweenMax - bubbleConfig.timeBetweenMin) +
-                 bubbleConfig.timeBetweenMin;
-               bubbleConfig.bubbles[i].x = Math.floor(
-                 Math.random() * ($el.width() - s - s) + s
-               );
-             }
-             if (!bubbleConfig.backgroundBubbles[h].float) {
-               bubbleConfig.backgroundBubbles[
-                 h
-               ].float = true; /* This drives the ng-class, which, in turn, drives the animation */
-               bubbleConfig.backgroundBubbles[h].floatTime = Math.floor(
-                 Math.random() * (6 - 4) + 4
-               );
-               bubbleConfig.backgroundBubbles[h].bubbleSize = Math.floor(
-                 Math.random() * (30 - 10) + 10
-               );
-               bubbleConfig.backgroundBubbles[h].timeBetween =
-                 Math.random() *
-                   (bubbleConfig.timeBetweenMax - bubbleConfig.timeBetweenMin) +
-                 bubbleConfig.timeBetweenMin;
-               bubbleConfig.backgroundBubbles[h].x = Math.floor(
-                 Math.random() * $el.width()
-               );
-             }
-           }
-         };
-         me.tide = function () {
-           /* This drives the ng-class, which, in turn, drives the animation */
-           me.hightide = !me.hightide;
-         };
-         me.pause = function (pause) {
-           me.paused = pause;
-         };
-         me.togglePause = function () {
-           me.pause(!me.paused);
-         };
-       }
-     ])
-     /* bubbles: The bubbles directive */
-     .directive("bubbles", [
-       "$interval",
-       "$timeout",
-       function ($interval, $timeout) {
-         return {
-           restrict: "E",
-           scope: {
-             bubblesConfigDefault: "=",
-             vm: "="
-           },
-           controller: "bubblesCtrl",
-           controllerAs: "bvm",
-           template:
-             "<div ng-repeat='bubble in bubblesConfig.bubbles' class='bubble' ng-model='bubble' ng-class='{ float: bubble.float }' style='height: {{ ::bubble.bubbleSize }}px; width: {{ ::bubble.bubbleSize }}px; background-image: url({{ ::bubble.logo }})'><div class='bubble-fill'></div></div><div ng-repeat='bubble in bubblesConfig.backgroundBubbles' ng-model='bubble' class='background-bubble' ng-class='{ float: bubble.float }' style='height: {{ ::bubble.bubbleSize }}px; width: {{ ::bubble.bubbleSize }}px;'></div><div class='btn btn-list' ng-click='bvm.tide()'><i class='fa fa-list-ul'></i></div><div class='waves' ng-class='{ hightide: bvm.hightide }'><div class='wave wave-one'></div><div class='wave wave-two'></div><div class='wave wave-three'></div><div class='water'><ul><li ng-repeat='bubble in bubblesConfig.bubbles' style='background-image: url({{ ::bubble.logo }});'>{{ ::bubble.title }}</li></ul></div>",
-           link: function ($scope, $el, $attrs) {
-             $scope.bubblesConfig = angular.extend(
-               {},
-               $scope.bubblesConfigDefault
-             );
-             $scope.bubblesConfig.backgroundBubbles = Object.keys(
-               new Int8Array($scope.bubblesConfig.numBackgroundBubbles)
-             ).map(function (o) {
-               /* Create an array of background bubbles based on an integer value */ return {};
-             });
-             $interval(function () {
-               /* Start the floating bubbles */ $scope.bvm.initBubble(
-                 $scope.bubblesConfig
-               );
-             }, $scope.bubblesConfig.bubbleFrequency);
-             $timeout(function () {
-               $scope.vm.start = true;
-             }, 1);
-           }
-         };
-       }
-     ])
-     /* bubbles: Using the animation function to pause/unpause the animation based on the is-visible class being removed/added? */
-     .animation(".bubbles", function () {
-       return {
-         addClass: function (element, className, done) {
-           if (className === "start") {
-             var bvm = element.data().$bubblesController;
-             bvm.pause(false);
-           }
-         },
-         removeClass: function (element, className, done) {
-           if (className === "start") {
-             var bvm = element.data().$bubblesController;
-             bvm.pause(true);
-           }
-         }
-       };
-     })
-     /* bubbles: Animation for an individual bubble being asked to float */
-     .animation(".bubble", [
-       "$timeout",
-       function ($timeout) {
-         return {
-           addClass: function (element, className, done) {
-             if (className === "float") {
-               var model = element.data().$ngModelController.$modelValue;
-               var bb = element.parent()[0].getBoundingClientRect();
-               var path = [
-                 {
-                   x: model.x,
-                   y:
-                     Math.random() * (model.bubbleSize - model.bubbleSize) +
-                     model.bubbleSize
-                 }
-               ];
-               var tl = new TimelineMax({
-                 delay: model.timeBetween
-               });
-               tl.clear()
-                 .set(element, {
-                   x: model.x,
-                   y: bb.height,
-                   xPercent: -50,
-                   yPercent: -50
-                 })
-                 .fromTo(
-                   element,
-                   0.75,
-                   {
-                     scale: 0,
-                     opacity: 0,
-                     z: 0.1
-                   },
-                   {
-                     scale: 1,
-                     opacity: 1,
-                     ease: Back.easeOut
-                   }
-                 )
-                 .to(element, model.floatTime, {
-                   bezier: path,
-                   ease: Power2.easeInOut
-                 })
-                 .to(element, 0.1, {
-                   scale: 2,
-                   opacity: 0,
-                   ease: Ease.EaseOut,
-                   onComplete: function () {
-                     $timeout(function () {
-                       /* Yep, a hack */ model.float = false;
-                       done();
-                     }, 1);
-                   }
-                 });
-             }
-           }
-         };
-       }
-     ])
-     /* bubbles: Animation for a background bubble being asked to float */
-     .animation(".background-bubble", [
-       "$timeout",
-       function ($timeout) {
-         return {
-           addClass: function (element, className, done) {
-             if (className === "float") {
-               var model = element.data().$ngModelController.$modelValue;
-               var bb = element.parent()[0].getBoundingClientRect();
-               var path = [
-                 {
-                   x: model.x,
-                   y: model.bubbleSize * -1
-                 }
-               ];
-               TweenLite.set(element, {
-                 x: model.x,
-                 y: bb.height,
-                 xPercent: -50,
-                 yPercent: -50
-               });
-               TweenMax.to(element, model.floatTime, {
-                 delay: model.timeBetween,
-                 bezier: path,
-                 z: 0.1,
-                 ease: Power3.easeIn,
-                 onComplete: function () {
-                   $timeout(function () {
-                     /* Yep, a hack */ model.float = false;
-                     done();
-                   }, 1);
-                 }
-               });
-             }
-           }
-         };
-       }
-     ])
-     /* bubbles: Animation for the tide rising/falling */
-     .animation(".waves", function () {
-       var tl = new TimelineMax();
-       return {
-         addClass: function (element, className, done) {
-           if (className === "hightide") {
-             var bvm = element.parent().data().$bubblesController;
-             bvm.pause(true);
-             tl.clear()
-               .staggerTo(
-                 element.find(".wave"),
-                 2,
-                 {
-                   bottom: element.parent().height() - element.height(),
-                   z: 0.1,
-                   ease: Ease.easeOut
-                 },
-                 0.04
-               )
-               .to(
-                 element.find(".water"),
-                 2,
-                 {
-                   height: element.parent().height() - element.height(),
-                   ease: Ease.easeOut
-                 },
-                 0.04
-               )
-               .staggerFromTo(
-                 element.find("li"),
-                 0.5,
-                 {
-                   opacity: 0,
-                   right: "+=20"
-                 },
-                 {
-                   opacity: 1,
-                   right: 10,
-                   ease: Ease.easeOut,
-                   onComplete: done
-                 },
-                 0.05
-               );
-           }
-         },
-         removeClass: function (element, className, done) {
-           if (className === "hightide") {
-             var bvm = element.parent().data().$bubblesController;
-             bvm.pause(false);
-             tl.clear()
-               .to(
-                 element.find("li"),
-                 0.5,
-                 {
-                   opacity: 0,
-                   ease: Ease.easeOut
-                 },
-                 0.05
-               )
-               .to(element.find(".water"), 2, {
-                 height: 0,
-                 ease: Ease.easeOut
-               })
-               .staggerTo(
-                 element.find(".wave"),
-                 2,
-                 {
-                   bottom: 0,
-                   ease: Ease.easeOut,
-                   onComplete: done
-                 },
-                 -0.04,
-                 "-=2"
-               );
-           }
-         }
-       };
-     });
-   /**
-    * bubbles END
-    */
-   injector = angular.bootstrap(document, [
-     "floatingBubblesEx"
-   ]); /* I do this out of habit in case I need it */
- })();
- 
+const canvas = document.getElementById("backgroundCanvas");
+canvas.width = innerWidth;
+canvas.height = innerHeight;
+const ctx = canvas.getContext("2d");
+
+const bgwidth = canvas.width;
+const midy = canvas.height / 2;
+const amplitude = 50;
+const wavelength = 0.01;
+const frequency = 0.01;
+
+// return a random number within a range
+function getRandomNum(min, max) {
+  return Math.random() * (max - min) + min;
+}
+
+// map a number from 1 range to another
+function map(n, start1, end1, start2, end2) {
+  return (n - start1) / (end1 - start1) * (end2 - start2) + start2;
+}
+
+function radians($degrees) {
+  return $degrees * Math.PI / 180;
+}
+// Given the origin point of the circle, its radius and the angle in Radians (degrees * Math.PI / 180)
+// it returns the a point object showing the x,y coordinates of the point on a circle.
+
+function findPointOnCircle(originX, originY, radius, degrees) {
+  let angleRadians = radians(degrees);
+  var newX = radius * Math.cos(angleRadians) + originX;
+  var newY = radius * Math.sin(angleRadians) + originY;
+  return { x: newX, y: newY };
+}
+
+function drawCircles($amt, $ctx) {
+  for (let i = 0; i < $amt; i++) {
+    new Circle(
+    getRandomNum(0, window.innerWidth),
+    getRandomNum(0, window.innerWidth),
+    100,
+    $ctx);
+
+  }
+}
+
+class Circle {
+  constructor($x, $y, $radius, $ctx) {
+    $ctx.beginPath();
+    $ctx.arc($x, $y, $radius, radians(0), radians(360));
+    $ctx.stroke();
+  }}
+
+
+//drawCircles(10, ctx);
+
+class SineWave {
+  constructor(
+  $width,
+  $ctx,
+  $xorigin,
+  $yorigin,
+  $amplitude,
+  $wavelength,
+  $color,
+  $increment)
+  {
+    $ctx.beginPath();
+    $ctx.moveTo($xorigin, $yorigin);
+    for (let s = 0; s < $width; s++) {
+      ctx.lineTo(
+      s,
+      $yorigin +
+      Math.sin(s * $wavelength + $increment) *
+      $amplitude *
+      Math.sin($increment));
+
+    }
+    ctx.strokeStyle = $color;
+    ctx.stroke();
+  }}
+
+const sines = [
+{
+  color: "#be1d90",
+  y: midy + getRandomNum(-30, 30),
+  amplitude: amplitude + getRandomNum(-30, 30),
+  wavelength: wavelength + getRandomNum(-0.01, 0.01) },
+
+{
+  color: "#4b0487",
+  y: midy + getRandomNum(-30, 30),
+  amplitude: amplitude + getRandomNum(-30, 30),
+  wavelength: wavelength + getRandomNum(-0.01, 0.01) },
+
+{
+  color: "#42707d",
+  y: midy + getRandomNum(-30, 30),
+  amplitude: amplitude + getRandomNum(-30, 30),
+  wavelength: wavelength + getRandomNum(-0.01, 0.01) }];
+
+
+
+const drawSine = $i => {
+  ctx.fillStyle = "rgba(10, 10, 10, 0.05)";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  for (let i = 0; i < sines.length; i++) {
+    new SineWave(
+    bgwidth,
+    ctx,
+    0,
+    sines[i].y,
+    sines[i].amplitude,
+    sines[i].wavelength,
+    sines[i].color,
+    $i);
+
+  }
+};
+
+let increment = frequency;
+const updateCanvas = () => {
+  drawSine(increment);
+  //try to randomize change a bit
+  increment += getRandomNum(0, frequency * 3);
+  setTimeout(() => {
+    window.requestAnimationFrame(updateCanvas);
+  }, 20);
+};
+window.requestAnimationFrame(updateCanvas);
